@@ -1,5 +1,5 @@
 # Use the official Ruby image as the base image
-FROM ruby:3.4.9-slim-bullseye
+FROM ruby:3.3.0-slim-bullseye
 
 # Set environment variables for Rails
 ENV RAILS_ENV=production \
