@@ -1,11 +1,12 @@
 # Use the official Ruby image as the base image
-FROM ruby:3.3.0-slim-bullseye
+FROM ruby:3.4.1-slim-bullseye
 
 # Set environment variables for Rails
 ENV RAILS_ENV=production \
     BUNDLE_WITHOUT="development:test" \
     BUNDLE_PATH="/bundle" \
-    PORT=3000
+    PORT=3000 \
+    SECRET_KEY_BASE_DUMMY=1
 
 # Install system dependencies
 RUN apt-get update -qq && apt-get install -y \
@@ -31,7 +32,7 @@ COPY . .
 # If you are using importmap-rails, you might not need this step for JS,
 # but CSS assets might still need precompilation.
 # If you don't have any assets to precompile, you can remove or comment out this line.
-RUN bundle exec rails assets:precompile
+RUN SECRET_KEY_BASE=dummy bundle exec rails assets:precompile
 
 # Expose the port Rails runs on
 EXPOSE 3000
