@@ -1,7 +1,7 @@
-# Use the official Ruby image as the base image
+# Use the official Ruby image
 FROM ruby:3.4.1-bullseye
 
-# Set environment variables for Rails
+# Set environment variables
 ENV RAILS_ENV=production \
     BUNDLE_WITHOUT="development:test" \
     BUNDLE_PATH="/bundle" \
@@ -21,28 +21,30 @@ RUN apt-get update -qq && apt-get install -y \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-# Set the working directory inside the container
+# Set the working directory
 WORKDIR /app
 
-# Ensure bin/rails is executable and has Unix line endings
-COPY bin/rails bin/rails
-RUN chmod +x bin/rails && sed -i 's/\r$//' bin/rails
+# Install bundler
+RUN gem install bundler
 
-# Copy Gemfile and Gemfile.lock and install dependencies
+# Copy Gemfile and Gemfile.lock
 COPY Gemfile Gemfile.lock ./
+
+# Install dependencies
 RUN bundle install
 
 # Copy the rest of the application code
 COPY . .
 
-# Precompile bootsnap cache for faster boot times
-RUN bundle exec bootsnap precompile --gemfile app/ lib/
+# Fix permissions and line endings
+RUN chmod +x bin/* && \
+    sed -i 's/\r$//' bin/*
 
 # Precompile assets
 RUN bundle exec rails assets:precompile
 
-# Expose the port Rails runs on
+# Expose the port
 EXPOSE 3000
 
-# Command to run the Rails server
+# Start the server
 CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
