@@ -310,7 +310,20 @@ document.addEventListener("turbo:load", () => {
       toggleScreen.addEventListener('click', async () => {
         if (!isScreenSharing) {
           try {
-            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+            if (navigator.mediaDevices.getDisplayMedia) {
+              screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+            } else {
+              // Fallback for mobile (like iOS Safari) that completely lack getDisplayMedia
+              // Use rear camera as an alternative way to "share" context
+              try {
+                screenStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } })
+              } catch (e) {
+                screenStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+              }
+            }
+
+            if (!screenStream) throw new Error("Could not acquire screen or rear camera")
+
             isScreenSharing = true
             toggleScreen.classList.add('active')
 

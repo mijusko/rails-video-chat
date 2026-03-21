@@ -177,7 +177,7 @@ body { background: var(--bg-dark); background-image: var(--bg-gradient); color: 
 
 @media (max-width: 768px) {
   .chat-panel { width: 100%; right: -100%; }
-  .video-grid.grid-4 { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; }
+  .video-grid { grid-template-columns: 1fr !important; grid-auto-rows: minmax(300px, 1fr) !important; display: grid !important; height: auto !important; min-height: 100%; }
   .control-btn { width: 48px; height: 48px; }
   .control-btn svg { width: 20px; height: 20px; }
   .control-btn.hangup-btn { width: 56px; height: 56px; }
