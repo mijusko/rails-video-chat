@@ -1,5 +1,5 @@
 # Use the official Ruby image as the base image
-FROM ruby:3.3.7-slim-bullseye
+FROM ruby:3.4.1-slim-bullseye
 
 # Set environment variables for Rails
 ENV RAILS_ENV=production \
@@ -15,6 +15,8 @@ RUN apt-get update -qq && apt-get install -y \
     build-essential \
     nodejs \
     tzdata \
+    libyaml-dev \
+    git \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
