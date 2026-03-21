@@ -4,7 +4,8 @@ FROM ruby:3.4.1-bullseye
 # Set environment variables
 ENV RAILS_ENV=production \
     BUNDLE_WITHOUT="development:test" \
-    BUNDLE_PATH="/bundle" \
+    BUNDLE_PATH="/usr/local/bundle" \
+    BUNDLE_DEPLOYMENT="0" \
     PORT=3000 \
     SECRET_KEY_BASE_DUMMY=1 \
     RAILS_SERVE_STATIC_FILES=true \
@@ -24,7 +25,7 @@ RUN apt-get update -qq && apt-get install -y \
 # Set the working directory
 WORKDIR /app
 
-# Install bundler
+# Install bundler (match version in Gemfile.lock)
 RUN gem install bundler
 
 # Copy Gemfile and Gemfile.lock

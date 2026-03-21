@@ -97,6 +97,14 @@ document.addEventListener("turbo:load", () => {
           if (data.type === 'connection_ready') {
             myPeerId = data.peer_id
             console.log("My peer ID is:", myPeerId)
+          } else if (data.type === 'existing_users') {
+            // Connect to users who were already in the room before we joined
+            (data.users || []).forEach(user => {
+              if (user.id && user.id !== myPeerId) {
+                peerNames[user.id] = user.username
+                handlePeerJoined(user.id, user.username)
+              }
+            })
           } else if (data.type === 'peer_joined') {
             if (!data.peer_id || data.peer_id === myPeerId) return
             peerNames[data.peer_id] = data.username
