@@ -1,12 +1,14 @@
 # Use the official Ruby image as the base image
-FROM ruby:3.4.1-slim-bullseye
+FROM ruby:3.3.7-slim-bullseye
 
 # Set environment variables for Rails
 ENV RAILS_ENV=production \
     BUNDLE_WITHOUT="development:test" \
     BUNDLE_PATH="/bundle" \
     PORT=3000 \
-    SECRET_KEY_BASE_DUMMY=1
+    SECRET_KEY_BASE_DUMMY=1 \
+    RAILS_SERVE_STATIC_FILES=true \
+    RAILS_LOG_TO_STDOUT=true
 
 # Install system dependencies
 RUN apt-get update -qq && apt-get install -y \
