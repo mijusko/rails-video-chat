@@ -1,0 +1,27 @@
+<div class="landing-container">
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+  <div class="glow-orb orb-3"></div>
+
+  <div class="glass-card animated-entrance">
+    <div class="card-header">
+      <div class="icon-pulse">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-video"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+      </div>
+      <h1>Connect Live</h1>
+      <p>Crystal clear video meetings, instantly.</p>
+    </div>
+
+    <%= form_with url: sessions_path, local: true, class: "login-form" do |f| %>
+      <div class="input-group">
+        <%= f.text_field :username, placeholder: "Enter your username", required: true, autocomplete: "off", class: "glass-input", autofocus: true %>
+      </div>
+      
+      <%= f.submit "Start Now", class: "btn-primary glow-button" %>
+    <% end %>
+
+    <% if flash[:alert] %>
+      <div class="alert error"><%= flash[:alert] %></div>
+    <% end %>
+  </div>
+</div>

@@ -1,0 +1,46 @@
+<div class="landing-container">
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+  <div class="glow-orb orb-3"></div>
+
+  <div class="glass-card animated-entrance">
+    <div class="card-header">
+      <div class="user-badge">
+        <span class="pulse-dot"></span>
+        <%= session[:username] %>
+      </div>
+      <h1>Lobby</h1>
+      <p>Join an existing room or create a new one.</p>
+    </div>
+
+    <div class="room-form">
+      <div class="input-group">
+        <input type="text" id="room_input" placeholder="Enter Room Number" class="glass-input" autocomplete="off" autofocus>
+      </div>
+      
+      <button id="join_btn" class="btn-primary glow-button">
+        Join Room
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+      </button>
+      
+      <%= button_to "Logout", sessions_path, method: :delete, class: "btn-logout" %>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('join_btn').addEventListener('click', () => {
+    const room = document.getElementById('room_input').value.trim();
+    if (room) {
+      window.location.href = `/rooms/${room}`;
+    } else {
+      alert("Please enter a room number");
+    }
+  });
+
+  document.getElementById('room_input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      document.getElementById('join_btn').click();
+    }
+  });
+</script>
