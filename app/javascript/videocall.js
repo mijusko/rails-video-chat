@@ -55,22 +55,7 @@ document.addEventListener("turbo:load", () => {
       console.warn("Media access denied or not available. Running in chat/screen-share mode.", err)
       localStream = new MediaStream()
       
-      // Add fake video track so screensharing can use replaceTrack without renegotiation
-      try {
-        const canvas = document.createElement('canvas')
-        canvas.width = 640; canvas.height = 480
-        canvas.getContext('2d').fillRect(0, 0, 640, 480)
-        const fakeStream = canvas.captureStream ? canvas.captureStream() : null
-        if (fakeStream) {
-          const fakeVideo = fakeStream.getVideoTracks()[0]
-          fakeVideo.enabled = false
-          fakeVideo.canvas = canvas // Mark as fake track
-          localStream.addTrack(fakeVideo)
-        }
-      } catch (e) {
-        console.warn("Could not create fake video track", e)
-      }
-      
+
       // Update UI buttons to show disabled initially
       setTimeout(() => {
         document.getElementById('toggle-mic').classList.remove('active')
@@ -145,7 +130,18 @@ document.addEventListener("turbo:load", () => {
     }
 
     const currentStream = isScreenSharing && screenStream ? screenStream : localStream
-    currentStream.getTracks().forEach(track => pc.addTrack(track, currentStream))
+    let hasAudio = false
+    let hasVideo = false
+    currentStream.getTracks().forEach(track => {
+      pc.addTrack(track, currentStream)
+      if (track.kind === 'audio') hasAudio = true
+      if (track.kind === 'video') hasVideo = true
+    })
+
+    // Force negotiation of audio/video channels even if we don't have local tracks.
+    // This allows us to RECEIVE them and SEND them later dynamically (via screen share).
+    if (!hasAudio) pc.addTransceiver('audio', { direction: 'sendrecv' })
+    if (!hasVideo) pc.addTransceiver('video', { direction: 'sendrecv' })
 
     return pc
   }
@@ -228,13 +224,36 @@ document.addEventListener("turbo:load", () => {
       videoGrid.appendChild(videoDiv)
     }
 
-    // Replace contents safely
     videoDiv.innerHTML = `
+      <div class="video-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" class="user-avatar" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </div>
       <video autoplay playsinline ${isLocal ? 'muted' : ''}></video>
       <div class="user-label">${name} ${isLocal ? '(You)' : ''}</div>
     `
     const videoObj = videoDiv.querySelector('video')
     videoObj.srcObject = stream
+
+    videoObj.play().catch(e => console.warn("Auto-play prevented", e))
+
+    const checkTracks = () => {
+      const videoTrack = stream.getVideoTracks()[0]
+      const hasActiveVideo = videoTrack && !videoTrack.muted && videoTrack.enabled && videoTrack.readyState === 'live'
+      videoObj.style.opacity = hasActiveVideo ? '1' : '0'
+    }
+    
+    stream.addEventListener('addtrack', checkTracks)
+    stream.addEventListener('removetrack', checkTracks)
+    stream.getVideoTracks().forEach(t => {
+      t.onunmute = checkTracks
+      t.onmute = checkTracks
+      t.onended = checkTracks
+    })
+    
+    setTimeout(checkTracks, 500)
 
     updateGridLayout()
   }
@@ -272,15 +291,17 @@ document.addEventListener("turbo:load", () => {
 
     if (toggleCam) {
       toggleCam.addEventListener('click', () => {
-        // If the track is our fake canvas track, we can't toggle real camera
         const videoTrack = localStream.getVideoTracks()[0]
-        if (videoTrack && videoTrack.canvas) { // canvas property exists only on our fake track
+        if (!videoTrack && !isScreenSharing) {
           alert("Camera is not available")
           return
         }
         if (videoTrack && !isScreenSharing) {
           videoTrack.enabled = !videoTrack.enabled
           toggleCam.classList.toggle('active', videoTrack.enabled)
+          
+          const localVideo = document.querySelector('#video-local video')
+          if (localVideo) localVideo.style.opacity = videoTrack.enabled ? '1' : '0'
         }
       })
     }
@@ -296,12 +317,17 @@ document.addEventListener("turbo:load", () => {
             const screenTrack = screenStream.getVideoTracks()[0]
             
             Object.values(peers).forEach(pc => {
-              const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video')
-              if (sender) sender.replaceTrack(screenTrack)
+              const transceiver = pc.getTransceivers().find(t => t.receiver.track.kind === 'video')
+              if (transceiver && transceiver.sender) {
+                transceiver.sender.replaceTrack(screenTrack)
+              }
             })
 
             const localVideo = document.querySelector('#video-local video')
-            if (localVideo) localVideo.srcObject = screenStream
+            if (localVideo) {
+              localVideo.srcObject = screenStream
+              localVideo.style.opacity = '1'
+            }
 
             screenTrack.onended = stopScreenShare
           } catch (e) { console.error("Screen share failed", e) }
@@ -319,14 +345,19 @@ document.addEventListener("turbo:load", () => {
         screenStream = null
       }
       
-      const localVideoTrack = localStream.getVideoTracks()[0]
+      const localVideoTrack = localStream.getVideoTracks()[0] || null
       Object.values(peers).forEach(pc => {
-            const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video')
-            if (sender && localVideoTrack) sender.replaceTrack(localVideoTrack)
+        const transceiver = pc.getTransceivers().find(t => t.receiver.track.kind === 'video')
+        if (transceiver && transceiver.sender) {
+             transceiver.sender.replaceTrack(localVideoTrack)
+        }
       })
 
       const localVideo = document.querySelector('#video-local video')
-      if (localVideo) localVideo.srcObject = localStream
+      if (localVideo) {
+        localVideo.srcObject = localStream
+        localVideo.style.opacity = localVideoTrack && localVideoTrack.enabled ? '1' : '0'
+      }
     }
 
     if (leaveBtn) {
