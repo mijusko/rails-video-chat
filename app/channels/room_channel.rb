@@ -5,6 +5,9 @@ class RoomChannel < ApplicationCable::Channel
     
     stream_from "room_#{@room_id}"
     
+    # Send current_user_id to the subscriber so they know who they are
+    transmit({ type: "connection_ready", peer_id: current_user_id })
+    
     RoomStore.join(@room_id, current_user_id, @username)
     
     # Broadcast to others that a new peer joined, and send the current list of users to the new peer

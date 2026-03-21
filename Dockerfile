@@ -11,9 +11,7 @@ ENV RAILS_ENV=production \
 # Install system dependencies
 RUN apt-get update -qq && apt-get install -y \
     build-essential \
-    libpq-dev \
     nodejs \
-    postgresql-client \
     tzdata \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*

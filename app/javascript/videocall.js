@@ -30,7 +30,9 @@ document.addEventListener("turbo:load", () => {
   let screenStream = null
   let isScreenSharing = false
   let peers = {}
+  let peerNames = {}
   let channel = null
+  let myPeerId = null
 
   const ICE_SERVERS = {
     iceServers: [
@@ -92,26 +94,24 @@ document.addEventListener("turbo:load", () => {
           currentChannel = channel // Update global ref for cleanup
         },
         received(data) {
-          // If message is from self (ActionCable bounces back unless handled), ignore.
-          // Wait, ActionCable `from` is attached by the server. 
-          // Server sets `data["from"] = current_user_id` in RoomChannel#receive.
-          // Wait, server broadcasted `peer_joined` with `peer_id`.
-          
-          if (data.type === 'peer_joined') {
-            if (data.peer_id === undefined) return
-            // Save our own ID if this is us joining, wait we don't know who we are.
-            // Let's use username for identifying for simplicity in this demo mesh.
-            if (data.username !== username) handlePeerJoined(data.username)
+          if (data.type === 'connection_ready') {
+            myPeerId = data.peer_id
+            console.log("My peer ID is:", myPeerId)
+          } else if (data.type === 'peer_joined') {
+            if (!data.peer_id || data.peer_id === myPeerId) return
+            peerNames[data.peer_id] = data.username
+            handlePeerJoined(data.peer_id, data.username)
           } else if (data.type === 'peer_left') {
-            if (data.username !== username) handlePeerLeft(data.username)
+            if (!data.peer_id || data.peer_id === myPeerId) return
+            handlePeerLeft(data.peer_id)
           } else if (data.type === 'offer') {
-            if (data.to === username) handleOffer(data)
+            if (data.to === myPeerId) handleOffer(data)
           } else if (data.type === 'answer') {
-            if (data.to === username) handleAnswer(data)
+            if (data.to === myPeerId) handleAnswer(data)
           } else if (data.type === 'ice_candidate') {
-            if (data.to === username) handleIceCandidate(data)
+            if (data.to === myPeerId) handleIceCandidate(data)
           } else if (data.type === 'chat') {
-            if (data.username !== username) {
+            if (data.from_id !== myPeerId) {
               addChatMessage(data.username, data.message)
             }
           }
@@ -120,18 +120,18 @@ document.addEventListener("turbo:load", () => {
     )
   }
 
-  function createPeerConnection(peerUsername) {
+  function createPeerConnection(peerId, peerUsername) {
     const pc = new RTCPeerConnection(ICE_SERVERS)
-    peers[peerUsername] = pc
+    peers[peerId] = pc
 
     pc.onicecandidate = event => {
       if (event.candidate) {
-        channel.send({ type: 'ice_candidate', to: peerUsername, candidate: event.candidate, from: username })
+        channel.send({ type: 'ice_candidate', to: peerId, candidate: event.candidate, from_id: myPeerId })
       }
     }
 
     pc.ontrack = event => {
-      addVideoStream(peerUsername, event.streams[0], peerUsername, false)
+      addVideoStream(peerId, event.streams[0], peerUsername, false)
     }
 
     const currentStream = isScreenSharing && screenStream ? screenStream : localStream
@@ -140,48 +140,52 @@ document.addEventListener("turbo:load", () => {
     return pc
   }
 
-  function handlePeerJoined(peerUsername) {
+  function handlePeerJoined(peerId, peerUsername) {
     // We initiate connection to the new peer
-    const pc = createPeerConnection(peerUsername)
+    const pc = createPeerConnection(peerId, peerUsername)
     pc.createOffer()
       .then(offer => pc.setLocalDescription(offer))
       .then(() => {
-        channel.send({ type: 'offer', to: peerUsername, offer: pc.localDescription, from: username })
+        channel.send({ type: 'offer', to: peerId, offer: pc.localDescription, from_id: myPeerId, from_username: username })
       })
   }
 
   function handleOffer(data) {
-    const peerUsername = data.from
-    const pc = createPeerConnection(peerUsername)
+    const peerId = data.from_id
+    const peerUsername = data.from_username
+    peerNames[peerId] = peerUsername
+    
+    const pc = createPeerConnection(peerId, peerUsername)
     
     pc.setRemoteDescription(new RTCSessionDescription(data.offer))
       .then(() => pc.createAnswer())
       .then(answer => pc.setLocalDescription(answer))
       .then(() => {
-        channel.send({ type: 'answer', to: peerUsername, answer: pc.localDescription, from: username })
+        channel.send({ type: 'answer', to: peerId, answer: pc.localDescription, from_id: myPeerId })
       })
   }
 
   function handleAnswer(data) {
-    const pc = peers[data.from]
+    const pc = peers[data.from_id]
     if (pc) {
       pc.setRemoteDescription(new RTCSessionDescription(data.answer))
     }
   }
 
   function handleIceCandidate(data) {
-    const pc = peers[data.from]
+    const pc = peers[data.from_id]
     if (pc && data.candidate) {
       pc.addIceCandidate(new RTCIceCandidate(data.candidate))
     }
   }
 
-  function handlePeerLeft(peerUsername) {
-    if (peers[peerUsername]) {
-      peers[peerUsername].close()
-      delete peers[peerUsername]
+  function handlePeerLeft(peerId) {
+    if (peers[peerId]) {
+      peers[peerId].close()
+      delete peers[peerId]
     }
-    const tile = document.getElementById(`video-${peerUsername}`)
+    if (peerNames[peerId]) delete peerNames[peerId]
+    const tile = document.getElementById(`video-${peerId}`)
     if (tile) tile.remove()
     updateGridLayout()
   }
