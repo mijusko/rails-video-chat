@@ -108,9 +108,10 @@ document.addEventListener("turbo:load", () => {
           } else if (data.type === 'peer_joined') {
             if (!data.peer_id || data.peer_id === myPeerId) return
             peerNames[data.peer_id] = data.username
-            handlePeerJoined(data.peer_id, data.username)
+            addChatMessage('System', `${data.username} joined the room`)
           } else if (data.type === 'peer_left') {
             if (!data.peer_id || data.peer_id === myPeerId) return
+            if (peerNames[data.peer_id]) addChatMessage('System', `${peerNames[data.peer_id]} left the room`)
             handlePeerLeft(data.peer_id)
           } else if (data.type === 'offer') {
             if (data.to === myPeerId) handleOffer(data)
@@ -130,6 +131,7 @@ document.addEventListener("turbo:load", () => {
 
   function createPeerConnection(peerId, peerUsername) {
     const pc = new RTCPeerConnection(ICE_SERVERS)
+    pc.iceQueue = []
     peers[peerId] = pc
 
     pc.onicecandidate = event => {
@@ -166,24 +168,43 @@ document.addEventListener("turbo:load", () => {
     const pc = createPeerConnection(peerId, peerUsername)
     
     pc.setRemoteDescription(new RTCSessionDescription(data.offer))
-      .then(() => pc.createAnswer())
+      .then(() => {
+        processIceQueue(pc)
+        return pc.createAnswer()
+      })
       .then(answer => pc.setLocalDescription(answer))
       .then(() => {
         channel.send({ type: 'answer', to: peerId, answer: pc.localDescription, from_id: myPeerId })
       })
+      .catch(e => console.error("Error handling offer:", e))
   }
 
   function handleAnswer(data) {
     const pc = peers[data.from_id]
     if (pc) {
       pc.setRemoteDescription(new RTCSessionDescription(data.answer))
+        .then(() => processIceQueue(pc))
+        .catch(e => console.error("Error setting answer:", e))
     }
   }
 
   function handleIceCandidate(data) {
     const pc = peers[data.from_id]
     if (pc && data.candidate) {
-      pc.addIceCandidate(new RTCIceCandidate(data.candidate))
+      if (pc.remoteDescription) {
+        pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e => console.error("Error adding ice candidate:", e))
+      } else {
+        pc.iceQueue.push(data.candidate)
+      }
+    }
+  }
+
+  function processIceQueue(pc) {
+    if (pc.iceQueue && pc.iceQueue.length > 0) {
+      pc.iceQueue.forEach(candidate => {
+        pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error("Error adding queued ice candidate:", e))
+      })
+      pc.iceQueue = []
     }
   }
 
