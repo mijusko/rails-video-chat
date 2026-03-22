@@ -233,12 +233,21 @@ document.addEventListener("turbo:load", () => {
 
   function addVideoStream(id, stream, name, isLocal) {
     let videoDiv = document.getElementById(`video-${id}`)
-    if (!videoDiv) {
-      videoDiv = document.createElement('div')
-      videoDiv.id = `video-${id}`
-      videoDiv.className = 'video-tile'
-      videoGrid.appendChild(videoDiv)
+    
+    if (videoDiv) {
+      // Tile already exists, ensure stream is attached if it changed
+      const videoObj = videoDiv.querySelector('video')
+      if (videoObj.srcObject !== stream) {
+        videoObj.srcObject = stream
+        videoObj.play().catch(e => console.warn("Auto-play prevented", e))
+      }
+      return
     }
+
+    videoDiv = document.createElement('div')
+    videoDiv.id = `video-${id}`
+    videoDiv.className = 'video-tile'
+    videoGrid.appendChild(videoDiv)
 
     videoDiv.innerHTML = `
       <div class="video-placeholder">
