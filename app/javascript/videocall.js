@@ -25,6 +25,10 @@ document.addEventListener("turbo:load", () => {
   const cable = ActionCable.createConsumer()
   const roomId = layoutObj.dataset.roomId
   const username = layoutObj.dataset.username
+  
+  // Securely grab TURN credentials from the environment variables (injected via Rails DOM attributes)
+  const turnUsername = layoutObj.dataset.turnUsername || ""
+  const turnCredential = layoutObj.dataset.turnCredential || ""
 
   let localStream = null
   let screenStream = null
@@ -36,23 +40,29 @@ document.addEventListener("turbo:load", () => {
 
   const ICE_SERVERS = {
     iceServers: [
+      { urls: 'stun:stun.relay.metered.ca:80' },
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      // Free public TURN servers to handle strict NATs (different networks/4G)
+      // Private TURN servers to handle strict NATs (different networks/4G)
+      // Credentials securely populated from Render environment variables
       {
-        urls: 'turn:openrelay.metered.ca:80',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
+        urls: 'turn:global.relay.metered.ca:80',
+        username: turnUsername,
+        credential: turnCredential
       },
       {
-        urls: 'turn:openrelay.metered.ca:443',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
+        urls: 'turn:global.relay.metered.ca:443',
+        username: turnUsername,
+        credential: turnCredential
       },
       {
-        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
+        urls: 'turn:global.relay.metered.ca:443?transport=tcp',
+        username: turnUsername,
+        credential: turnCredential
+      },
+      {
+        urls: 'turns:global.relay.metered.ca:443?transport=tcp',
+        username: turnUsername,
+        credential: turnCredential
       }
     ]
   }

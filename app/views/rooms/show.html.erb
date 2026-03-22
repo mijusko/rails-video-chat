@@ -1,4 +1,8 @@
-<div class="room-layout" data-room-id="<%= @room_id %>" data-username="<%= @username %>">
+<div class="room-layout" 
+     data-room-id="<%= @room_id %>" 
+     data-username="<%= @username %>"
+     data-turn-username="<%= ENV['TURN_USERNAME'] %>"
+     data-turn-credential="<%= ENV['TURN_CREDENTIAL'] %>">
   
   <div class="top-bar">
     <div class="room-info" id="copy-room-btn">
